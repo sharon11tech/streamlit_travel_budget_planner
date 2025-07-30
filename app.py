@@ -1,130 +1,76 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from datetime import date
+from datetime import datetime
 
 st.set_page_config(page_title="Travel Budget Planner", layout="centered")
 
-st.markdown(
-    """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap');
+st.markdown("<h1 style='text-align: center; font-family: Brush Script MT; color: #3B3B98;'>Travel Budget Planner</h1>", unsafe_allow_html=True)
 
-    .main-title {
-        text-align: center;
-        font-size: 64px;
-        font-family: 'Great Vibes', cursive;
-        color: #6EB5FF;
-        margin-bottom: 10px;
-        padding-top: 10px;
+with st.sidebar:
+    st.header("Trip Preferences")
+    destination = st.selectbox("Choose your destination", ["Paris", "Tokyo", "New York", "Dubai", "Bali", "Rome", "Istanbul"])
+    start_date = st.date_input("Trip Start Date")
+    end_date = st.date_input("Trip End Date")
+    trip_style = st.selectbox("Trip Style", ["Adventure", "Relaxation", "Business", "Family"])
+    accommodation_type = st.selectbox("Accommodation Type", ["Hostel", "Hotel", "Airbnb", "Resort"])
+    food_cost = st.slider("Daily food cost ($)", 10, 100, 30)
+    transport_cost = st.slider("Daily transport cost ($)", 5, 80, 20)
+    shopping_cost = st.slider("Total shopping/extra cost ($)", 0, 1000, 150)
+
+if end_date < start_date:
+    st.error("End date must be after start date.")
+else:
+    num_days = (end_date - start_date).days + 1
+
+    accommodation_multipliers = {
+        "Hostel": 20,
+        "Hotel": 50,
+        "Airbnb": 40,
+        "Resort": 80
     }
 
-    .cost-highlight {
-        font-size: 24px;
-        font-weight: bold;
-        color: #2F4F4F;
-        background-color: #F5F5F5;
-        padding: 10px;
-        border-radius: 8px;
-        width: fit-content;
-        margin: 20px auto;
-        text-align: center;
+    daily_accommodation_cost = accommodation_multipliers[accommodation_type]
+    total_food = food_cost * num_days
+    total_transport = transport_cost * num_days
+    total_accommodation = daily_accommodation_cost * num_days
+    total_cost = total_food + total_transport + total_accommodation + shopping_cost
+
+    st.subheader("Trip Summary")
+    st.write(f"**Destination:** {destination}")
+    st.write(f"**Trip Style:** {trip_style}")
+    st.write(f"**Accommodation Type:** {accommodation_type}")
+    st.write(f"**Duration:** {num_days} days ({start_date.strftime('%b %d')} to {end_date.strftime('%b %d')})")
+
+    tips = {
+        "Paris": ["Buy a museum pass to save money.", "Use metro to get around cheaply."],
+        "Tokyo": ["Get a prepaid IC card for transport.", "Many restaurants offer budget lunch boxes."],
+        "New York": ["Use the subway instead of taxis.", "Many museums have free entry days."],
+        "Dubai": ["Travel during shoulder season for cheaper rates.", "Use Nol card for metro and buses."],
+        "Bali": ["Eat at warungs for cheap local food.", "Rent a scooter for local travel."],
+        "Rome": ["Drink from public fountains—it’s clean.", "Walking is the best way to explore the city."],
+        "Istanbul": ["Buy a museum card to save on entry fees.", "Try ferries for scenic and cheap transport."]
     }
 
-    html, body, [class*="css"] {
-        font-family: 'Georgia', serif;
-    }
+    st.markdown("---")
+    st.subheader("Travel Tips ✨")
+    for tip in tips[destination]:
+        st.info(tip)
 
-    .tips-box {
-        background-color: #e9f5ff;
-        padding: 15px;
-        border-radius: 10px;
-        margin-top: 20px;
-        font-size: 16px;
-        color: #003366;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+    st.markdown("---")
+    st.subheader("Expense Breakdown")
+    expenses = pd.Series({
+        "Accommodation": total_accommodation,
+        "Food": total_food,
+        "Transport": total_transport,
+        "Shopping/Extras": shopping_cost
+    })
 
-st.markdown('<div class="main-title">Travel Budget Planner</div>', unsafe_allow_html=True)
+    fig, ax = plt.subplots()
+    colors = ["#E59866", "#58D68D", "#5DADE2", "#AF7AC5"]
+    ax.pie(expenses, labels=expenses.index, autopct='%1.1f%%', startangle=90, colors=colors)
+    ax.axis('equal')
+    st.pyplot(fig)
 
-st.sidebar.header("Trip Details")
-destination = st.sidebar.selectbox("Destination", ["Dubai", "Paris", "Bali", "New York", "Tokyo", "Rome", "Maldives"])
-start_date = st.sidebar.date_input("Start Date", date.today())
-end_date = st.sidebar.date_input("End Date", date.today())
-travelers = st.sidebar.number_input("Number of Travelers", min_value=1, max_value=10, value=1)
-budget_type = st.sidebar.radio("Budget Level", ["Low", "Medium", "Luxury"])
-include_activities = st.sidebar.checkbox("Include Sightseeing & Activities", value=True)
-
-days = (end_date - start_date).days
-if days < 1:
-    st.warning("Please select an end date after the start date.")
-    st.stop()
-
-costs = {
-    "Low": {"accommodation": 20, "food": 15, "transport": 10, "activities": 10},
-    "Medium": {"accommodation": 50, "food": 30, "transport": 20, "activities": 25},
-    "Luxury": {"accommodation": 120, "food": 70, "transport": 40, "activities": 60}
-}
-
-daily = costs[budget_type]
-total = {
-    "Accommodation": daily["accommodation"] * days * travelers,
-    "Food": daily["food"] * days * travelers,
-    "Transport": daily["transport"] * days * travelers,
-    "Activities": (daily["activities"] * days * travelers) if include_activities else 0
-}
-
-df = pd.DataFrame(list(total.items()), columns=["Category", "Cost"])
-total_cost = df["Cost"].sum()
-
-fig, ax = plt.subplots()
-colors = ['#FF9999', '#66B3FF', '#99FF99', '#FFCC99']
-ax.pie(df["Cost"], labels=df["Category"], autopct='%1.1f%%', startangle=90, colors=colors)
-ax.axis("equal")
-st.pyplot(fig)
-
-st.markdown(f'<div class="cost-highlight">Total Estimated Cost: ${total_cost:,.2f}</div>', unsafe_allow_html=True)
-
-travel_tips = {
-    "Dubai": [
-        "Avoid public displays of affection—cultural sensitivity matters.",
-        "Taxis are affordable and often cheaper than renting a car."
-    ],
-    "Paris": [
-        "Learn basic French greetings—they go a long way.",
-        "Beware of pickpockets near tourist spots."
-    ],
-    "Bali": [
-        "Bargaining is common at local markets.",
-        "Respect temple dress codes (cover shoulders and knees)."
-    ],
-    "New York": [
-        "Use the subway—it’s fast and budget-friendly.",
-        "Avoid Times Square restaurants for better local food."
-    ],
-    "Tokyo": [
-        "Get a Suica card for easy metro travel.",
-        "Cash is still king in many local shops."
-    ],
-    "Rome": [
-        "Wear comfortable shoes—many roads are cobbled.",
-        "Tap water is safe and delicious!"
-    ],
-    "Maldives": [
-        "Choose full-board options to save on meals.",
-        "Sunsets are amazing—don’t miss them!"
-    ]
-}
-
-if destination in travel_tips:
-    tips = travel_tips[destination]
-    st.markdown(f"""
-        <div class="tips-box">
-        <b>Travel Tips for {destination}:</b><br>
-        • {tips[0]}<br>
-        • {tips[1]}
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown(f"<h3 style='color:#1F618D;'>Total Estimated Cost: <span style='color:#117864;'>${total_cost:,.2f}</span></h3>", unsafe_allow_html=True)
